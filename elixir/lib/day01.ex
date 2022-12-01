@@ -1,18 +1,30 @@
 defmodule Day01 do
-  @moduledoc """
-  Documentation for `Day01`.
-  """
+  def read_input(file) do
+    {:ok, file} = File.read(file)
+    file
+    |> String.trim
+    |> String.split("\n\n")
+    |> Enum.map(fn x ->
+      x |> String.split("\n") |> Enum.map(&String.to_integer/1)
+    end)
+  end
 
-  @doc """
-  Hello world.
+  def max_cals(input) do
+    # input |> Enum.map(&Enum.sum/1) |> Enum.max
+    max_n_cals(input, 1)
+  end
 
-  ## Examples
+  def max_n_cals(input, n) do
+    input |> Enum.map(&Enum.sum/1) |> Enum.sort(:desc) |> Enum.take(n) |> Enum.sum
+  end
 
-      iex> Day01.hello()
-      :world
+  def problem1() do
+    read_input("data/day01.txt")
+    |> max_cals()
+  end
 
-  """
-  def hello do
-    :world
+  def problem2() do
+    read_input("data/day01.txt")
+    |> max_n_cals(3)
   end
 end
