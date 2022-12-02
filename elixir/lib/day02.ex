@@ -35,7 +35,9 @@ defmodule Day02 do
     end
   end
 
-  def score_round(opp_move, my_move) do
+  def score_round(x, y) do
+    opp_move = %{"A" => :rock, "B" => :paper, "C" => :scissors}[x]
+    my_move = %{"X" => :rock, "Y" => :paper, "Z" => :scissors}[y]
     move_score = case my_move do
       :rock -> 1
       :paper -> 2
@@ -49,7 +51,9 @@ defmodule Day02 do
     move_score + result_score
   end
 
-  def score_round2(opp_move, result) do
+  def score_round2(x, y) do
+    opp_move = %{"A" => :rock, "B" => :paper, "C" => :scissors}[x]
+    result = %{"X" => :one, "Y" => :tie, "Z" => :two}[y]
     move_score = case implied_move(opp_move, result) do
       :rock -> 1
       :paper -> 2
@@ -63,33 +67,15 @@ defmodule Day02 do
     move_score + result_score
   end
 
-  def read_notation(opp_notation, my_notation) do
-    opp_move = %{"A" => :rock, "B" => :paper, "C" => :scissors}[opp_notation]
-    my_move = %{"X" => :rock, "Y" => :paper, "Z" => :scissors}[my_notation]
-    {opp_move, my_move}
-  end
-
-  def read_notation2(opp_notation, result_notation) do
-    opp_move = %{"A" => :rock, "B" => :paper, "C" => :scissors}[opp_notation]
-    result = %{"X" => :one, "Y" => :tie, "Z" => :two}[result_notation]
-    {opp_move, result}
-  end
-
   def problem1() do
     read_input("data/day02.txt")
-    |> Enum.map(fn [opp_notation, my_notation] ->
-      {opp_move, my_move} = read_notation(opp_notation, my_notation)
-      score_round(opp_move, my_move)
-    end)
+    |> Enum.map(fn [x, y] -> score_round(x, y) end)
     |> Enum.sum
   end
 
   def problem2() do
     read_input("data/day02.txt")
-    |> Enum.map(fn [opp_notation, my_notation] ->
-      {opp_move, my_move} = read_notation2(opp_notation, my_notation)
-      score_round2(opp_move, my_move)
-    end)
+    |> Enum.map(fn [x, y] -> score_round2(x, y) end)
     |> Enum.sum
   end
 end
