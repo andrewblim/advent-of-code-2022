@@ -1,7 +1,6 @@
 defmodule Day02 do
-  def read_input(file) do
-    {:ok, file} = File.read(file)
-    file
+  def read_input(input, type \\ :file) do
+    Helpers.file_or_io(input, type)
     |> String.trim
     |> String.split("\n")
     |> Enum.map(fn x -> x |> String.split(" ") end)
@@ -67,14 +66,14 @@ defmodule Day02 do
     move_score + result_score
   end
 
-  def problem1() do
-    read_input("data/day02.txt")
+  def problem1(input \\ "data/day02.txt", type \\ :file) do
+    read_input(input, type)
     |> Enum.map(fn [x, y] -> score_round(x, y) end)
     |> Enum.sum
   end
 
-  def problem2() do
-    read_input("data/day02.txt")
+  def problem2(input \\ "data/day02.txt", type \\ :file) do
+    read_input(input, type)
     |> Enum.map(fn [x, y] -> score_round2(x, y) end)
     |> Enum.sum
   end

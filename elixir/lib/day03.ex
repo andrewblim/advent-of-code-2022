@@ -1,14 +1,13 @@
 defmodule Day03 do
-  def read_input(file) do
-    {:ok, file} = File.read(file)
-    file
+  def read_input(input, type \\ :file) do
+    Helpers.file_or_io(input, type)
     |> String.trim()
     |> String.split("\n")
   end
 
   def split_rucksack(contents) do
-    len = div(String.length(contents), 2)
-    [String.slice(contents, 0..(len - 1)), String.slice(contents, len..(2 * len))]
+    String.split_at(contents, div(String.length(contents), 2))
+    |> Tuple.to_list()
   end
 
   def shared_items(compartments) do
@@ -36,15 +35,15 @@ defmodule Day03 do
     |> Enum.sum()
   end
 
-  def problem1() do
-    read_input("data/day03.txt")
+  def problem1(input \\ "data/day03.txt", type \\ :file) do
+    read_input(input, type)
     |> Enum.map(&split_rucksack/1)
     |> Enum.map(&value_shared_items/1)
     |> Enum.sum()
   end
 
-  def problem2() do
-    read_input("data/day03.txt")
+  def problem2(input \\ "data/day03.txt", type \\ :file) do
+    read_input(input, type)
     |> Enum.chunk_every(3)
     |> Enum.map(&value_shared_items/1)
     |> Enum.sum()
