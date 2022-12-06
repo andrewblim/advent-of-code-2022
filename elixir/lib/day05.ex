@@ -9,10 +9,7 @@ defmodule Day05 do
     [labels_input | boxes_input] = input
     |> String.split("\n")
     |> Enum.reverse()
-    labels = labels_input <> " "
-    |> String.codepoints()
-    |> Enum.chunk_every(4)
-    |> Enum.map(fn [_, x, _, _] -> x end)
+    labels = labels_input |> String.split()
     n_labels = length labels
     boxes = boxes_input
     |> Enum.map(fn line ->
@@ -45,11 +42,8 @@ defmodule Day05 do
   end
 
   def make_move(stacks, {n, from, to}) do
-    for _ <- 0..(n-1), reduce: stacks do
-      acc ->
-        [head | tail] = acc[from]
-        %{acc | from => tail, to => [head | acc[to]]}
-    end
+    move = stacks[from] |> Enum.take(n) |> Enum.reverse()
+    %{stacks | from => Enum.drop(stacks[from], n), to => move ++ stacks[to]}
   end
 
   def make_moves(stacks, moves) do
@@ -59,7 +53,7 @@ defmodule Day05 do
   end
 
   def make_move2(stacks, {n, from, to}) do
-    move = Enum.take(stacks[from], n)
+    move = stacks[from] |> Enum.take(n)
     %{stacks | from => Enum.drop(stacks[from], n), to => move ++ stacks[to]}
   end
 
