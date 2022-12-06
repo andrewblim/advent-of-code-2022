@@ -5,13 +5,11 @@ defmodule Day06 do
   end
 
   def packet_start(input, chunk_size) do
-    input
+    i = input
     |> String.codepoints()
-    |> Enum.chunk_every(chunk_size, 1)
-    |> Enum.with_index(chunk_size)
-    |> Enum.drop_while(fn {x, _} -> (length Enum.uniq(x)) != chunk_size end)
-    |> hd()
-    |> elem(1)
+    |> Stream.chunk_every(chunk_size, 1)
+    |> Enum.find_index(fn x -> (length Enum.uniq(x)) == chunk_size end)
+    chunk_size + i
   end
 
   def problem1(input \\ "data/day06.txt", type \\ :file) do
