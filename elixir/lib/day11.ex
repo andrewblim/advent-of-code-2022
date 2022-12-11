@@ -42,13 +42,36 @@ defmodule Day11 do
     end
   end
 
+  def lcm(a, b) do
+    Integer.floor_div(a * b, gcd(a, b))
+  end
+
+  def gcd(a, b) do
+    case b do
+      0 -> a
+      _ -> gcd(b, rem(a, b))
+    end
+  end
+
+  def gcd([x | tail]) do
+    case tail do
+      [] -> x
+      [y | tail] ->
+        gcd([gcd(max(x, y), min(x, y)) | tail])
+    end
+  end
+
+  def lcm(x) do
+    Integer.floor_div(Enum.product(x), gcd(x))
+  end
+
   def run_rounds(monkeys, order, div_by_3, times \\ 1) do
-    divisor_product = monkeys |> Map.values() |> Enum.map(fn x -> x[:divisor] end) |> Enum.product()
+    divisor_lcm = monkeys |> Map.values() |> Enum.map(fn x -> x[:divisor] end) |> lcm()
     for _ <- 1..times, id <- order, reduce: {monkeys, %{}} do
       {monkeys, inspections} ->
         will_inspect = length(monkeys[id][:items])
         {
-          run_monkey(monkeys, id, div_by_3, divisor_product),
+          run_monkey(monkeys, id, div_by_3, divisor_lcm),
           Map.update(inspections, id, will_inspect, fn x -> x + will_inspect end)
         }
     end
@@ -61,7 +84,7 @@ defmodule Day11 do
     end
   end
 
-  def run_monkey(monkeys, id, div_by_3, common_divisor) do
+  def run_monkey(monkeys, id, div_by_3, divisor_lcm) do
     active = monkeys[id]
     monkeys = for item <- monkeys[id][:items], reduce: monkeys do
       acc ->
@@ -75,7 +98,7 @@ defmodule Day11 do
           _ -> active[:false_throw]
         end
         Map.update!(acc, target, fn monkey ->
-          Map.put(monkey, :items, monkey[:items] ++ [rem(new_item, common_divisor)])
+          Map.put(monkey, :items, monkey[:items] ++ [rem(new_item, divisor_lcm)])
         end)
     end
     Map.update!(monkeys, id, fn monkey -> Map.put(monkey, :items, []) end)
