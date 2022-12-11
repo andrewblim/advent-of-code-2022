@@ -54,6 +54,5 @@ defmodule Day10 do
     |> Enum.chunk_every(40)
     |> Enum.map(&Enum.join/1)
     |> Enum.join("\n")
-    |> IO.puts()
   end
 end
