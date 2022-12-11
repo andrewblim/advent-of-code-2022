@@ -42,22 +42,14 @@ defmodule Day11 do
     end
   end
 
-  def lcm(a, b) do
-    Integer.floor_div(a * b, gcd(a, b))
-  end
-
   def gcd(a, b) do
-    case b do
-      0 -> a
-      _ -> gcd(b, rem(a, b))
-    end
+    if b == 0, do: a, else: gcd(b, rem(a, b))
   end
 
   def gcd([x | tail]) do
     case tail do
       [] -> x
-      [y | tail] ->
-        gcd([gcd(max(x, y), min(x, y)) | tail])
+      [y | tail] -> gcd([gcd(max(x, y), min(x, y)) | tail])
     end
   end
 
@@ -66,7 +58,7 @@ defmodule Day11 do
   end
 
   def run_rounds(monkeys, order, div_by_3, times \\ 1) do
-    divisor_lcm = monkeys |> Map.values() |> Enum.map(fn x -> x[:divisor] end) |> lcm()
+    divisor_lcm = monkeys |> Enum.map(fn {_ ,v} -> v[:divisor] end) |> lcm()
     for _ <- 1..times, id <- order, reduce: {monkeys, %{}} do
       {monkeys, inspections} ->
         will_inspect = length(monkeys[id][:items])
@@ -86,7 +78,7 @@ defmodule Day11 do
 
   def run_monkey(monkeys, id, div_by_3, divisor_lcm) do
     active = monkeys[id]
-    monkeys = for item <- monkeys[id][:items], reduce: monkeys do
+    for item <- active[:items], reduce: monkeys do
       acc ->
         new_item = case active[:transform] do
           [x, "+", y] -> sub_old(x, item) + sub_old(y, item)
@@ -97,11 +89,10 @@ defmodule Day11 do
           0 -> active[:true_throw]
           _ -> active[:false_throw]
         end
-        Map.update!(acc, target, fn monkey ->
-          Map.put(monkey, :items, monkey[:items] ++ [rem(new_item, divisor_lcm)])
-        end)
+        # order of items doesn't actually matter, prepend new ones
+        update_in(acc, [target, :items], fn items -> [rem(new_item, divisor_lcm) | items] end)
     end
-    Map.update!(monkeys, id, fn monkey -> Map.put(monkey, :items, []) end)
+    |> put_in([id, :items], [])
   end
 
   def problem1(input \\ "data/day11.txt", type \\ :file) do
