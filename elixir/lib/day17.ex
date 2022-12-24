@@ -6,64 +6,7 @@ defmodule Day17 do
     |> String.trim()
   end
 
-  def add_pieces(dirs, n) do
-    grid = for x <- 1..7, into: MapSet.new(), do: {x, 0}
-    heights = for x <- 1..7, into: Map.new(), do: {x, 0}
-    dirs = String.graphemes(dirs)
-    |> Enum.with_index()
-    |> Enum.map(fn {dir, i} -> {i, dir} end)
-    |> Map.new()
-
-    piece_type_order = [:hline, :cross, :ell, :vline, :box]
-    for piece_type <- Enum.take(Stream.cycle(piece_type_order), n), reduce: {grid, heights, 0} do
-      {grid, heights, i} ->
-        {x, y} = {3, Enum.max(Map.values(heights)) + 4}
-        piece = case piece_type do
-          :hline -> MapSet.new([{x, y}, {x + 1, y}, {x + 2, y}, {x + 3, y}])
-          :cross -> MapSet.new([{x, y + 1}, {x + 1, y}, {x + 1, y + 1}, {x + 1, y + 2}, {x + 2, y + 1}])
-          :ell -> MapSet.new([{x, y}, {x + 1, y}, {x + 2, y}, {x + 2, y + 1}, {x + 2, y + 2}])
-          :vline -> MapSet.new([{x, y}, {x, y + 1}, {x, y + 2}, {x, y + 3}])
-          :box -> MapSet.new([{x, y}, {x, y + 1}, {x + 1, y}, {x + 1, y + 1}])
-        end
-        move_piece(grid, heights, piece, dirs, i)
-    end
-  end
-
-  def occupied?(grid, {x, y}) do
-    x <= 0 or x >= 8 or MapSet.member?(grid, {x, y})
-  end
-
-  def any_occupied?(grid, pts) do
-    Enum.any?(pts, fn pt -> occupied?(grid, pt) end)
-  end
-
-  def move_piece(grid, heights, piece, dirs, i) do
-    dir = dirs[i]
-    shifted = case dir do
-      "<" -> for {x, y} <- piece, into: MapSet.new(), do: {x - 1, y}
-      ">" -> for {x, y} <- piece, into: MapSet.new(), do: {x + 1, y}
-    end
-    piece = if any_occupied?(grid, shifted), do: piece, else: shifted
-    shifted = for {x, y} <- piece, into: MapSet.new(), do: {x, y - 1}
-    cond do
-      any_occupied?(grid, shifted) ->
-        grid = MapSet.union(grid, piece)
-        heights = for {x, y} <- piece, reduce: heights do
-          acc -> Map.update!(acc, x, fn ht -> max(y, ht) end)
-        end
-        {grid, heights, rem(i + 1, map_size(dirs))}
-      true ->
-        move_piece(grid, heights, shifted, dirs, rem(i + 1, map_size(dirs)))
-    end
-  end
-
-  def add_pieces2(dirs, n) do
-    grid = 127
-    dirs = String.graphemes(dirs)
-    |> Enum.with_index()
-    |> Enum.map(fn {dir, i} -> {i, dir} end)
-    |> Map.new()
-
+  def add_pieces(dirs, n, start_piece \\ 0, start_dir \\ 0, find_flat \\ false) do
     # From most to least significant digit (least significant = "top")
     #
     # hline:
@@ -88,15 +31,36 @@ defmodule Day17 do
     # box:
     # 0011000 = 24
     # 0011000 = 24 => 6168
+    #
+    # initial grid
+    # 1111111 = 127
 
-    piece_order = [{30, 1}, {531464, 3}, {1836036, 3}, {269488144, 4}, {6168, 2}]
-    for {piece, piece_height} <- Enum.take(Stream.cycle(piece_order), n), reduce: {grid, 0} do
+    grid = 127
+
+    dirs = String.graphemes(dirs)
+    |> Enum.with_index()
+    |> Enum.map(fn {dir, i} -> {i, dir} end)
+    |> Map.new()
+
+    pieces = Stream.cycle([{30, 1}, {531464, 3}, {1836036, 3}, {269488144, 4}, {6168, 2}])
+    |> Stream.with_index()
+    |> Stream.drop(rem(start_piece, 5))
+
+    for {{piece, piece_height}, piece_n} <- Enum.take(pieces, n), reduce: {grid, start_dir} do
       {grid, i} ->
-        move_piece2(grid, {piece, piece_height}, dirs, i, -3 - piece_height)
+        {new_grid, new_i} = move_piece(grid, {piece, piece_height}, dirs, i, -3 - piece_height)
+        if find_flat and rem(new_grid, 256) == 127 do
+          IO.puts(piece_n)
+          IO.puts(piece)
+          IO.puts(new_i)
+          IO.puts(grid_height(new_grid))
+          IO.puts("")
+        end
+        {new_grid, new_i}
     end
   end
 
-  def move_piece2(grid, {piece, piece_height}, dirs, i, offset) do
+  def move_piece(grid, {piece, piece_height}, dirs, i, offset) do
     shifted = case dirs[i] do
       "<" -> if blocked_left(grid, piece, offset), do: piece, else: piece <<< 1
       ">" -> if blocked_right(grid, piece, offset), do: piece, else: piece >>> 1
@@ -104,7 +68,7 @@ defmodule Day17 do
     dropped = shifted <<< (offset + 1) * 8
     cond do
       (dropped &&& grid) == 0 ->
-        move_piece2(grid, {shifted, piece_height}, dirs, rem(i + 1, map_size(dirs)), offset + 1)
+        move_piece(grid, {shifted, piece_height}, dirs, rem(i + 1, map_size(dirs)), offset + 1)
       true ->
         grid_shift = max(-offset, 0)
         piece_shift = max(offset, 0)
@@ -133,13 +97,36 @@ defmodule Day17 do
 
   def problem1(input \\ "data/day17.txt", type \\ :file) do
     input = read_input(input, type)
-    {_, heights, _} = add_pieces(input, 2022)
-    Enum.max(Map.values(heights))
+    {grid, _} = add_pieces(input, 2022)
+    grid_height(grid)
   end
 
   def problem2(input \\ "data/day17.txt", type \\ :file) do
     input = read_input(input, type)
-    {grid, _} = add_pieces2(input, 1_000_000)
-    grid_height(grid)
+
+    # to find the cycles run:
+    # add_pieces(input, 10000, 0, 0, true)
+    #
+    # on my input cycles every 1690 pieces starting with piece 1240 after placing a line
+    # after 1240, 2930, 4620, etc. there is a flat line
+    # with heights
+    # (i = 7470 each time)
+    #
+    # (also: 1375, 3065, 4755, etc. where i = 8276 each time)
+
+    # {grid, _} = add_pieces(input, 1241)
+    # print_grid(grid)
+    # IO.puts(rem(grid, 256))
+
+    n = 1000000000000 # 1000000000000
+    n_init = 1240
+    n_cycles = Integer.floor_div(n - n_init, 1690)
+    n_rem = rem(n - n_init, 1690)
+
+    IO.inspect({n_init, n_cycles, n_rem})
+
+    {grid_init, grid_init_i} = add_pieces(input, n_init + 1)
+    {grid_rem, _} = add_pieces(input, n_rem - 1, n_init + 1, grid_init_i)
+    grid_height(grid_init) + n_cycles * 2548 + grid_height(grid_rem)
   end
 end
