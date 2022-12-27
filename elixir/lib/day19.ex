@@ -38,60 +38,89 @@ defmodule Day19 do
       init_state = %{
         resources: %{ore: 0, clay: 0, obs: 0, geode: 0},
         robots: %{ore: 1, clay: 0, obs: 0, geode: 0},
+        turns_left: n,
       }
-      final_states = bfs(blueprint, MapSet.new([init_state]), n)
-      max_geodes = final_states
-      |> Enum.map(fn state -> state[:resources][:geode] end)
-      |> Enum.max()
-      {blueprint[:id], {MapSet.size(final_states), max_geodes}}
+      visited = bfs(blueprint, MapSet.new([init_state]), MapSet.new())
+      final_scores = Enum.map(visited, &score_state/1)
+      {blueprint[:id], {MapSet.size(visited), Enum.max(final_scores)}}
     end
   end
 
-  def bfs(blueprint, states, n) do
-    if n <= 0 do
-      states
+  def bfs(blueprint, states, visited) do
+    if MapSet.size(states) == 0 do
+      visited
     else
-      next_no_build_states = for state <- states, do: {state, %{}}
-      next_build_states =
+      visited = MapSet.union(visited, states)
+      next_states =
         for state <- states,
-            robot_type <- [:ore, :clay, :obs, :geode],
-            {built_state, construction} = build(blueprint, state, robot_type),
-            valid_state?(built_state) do
-          {built_state, construction}
+            next_robot_type <- [:ore, :clay, :obs, :geode],
+            build_state = build(blueprint, state, next_robot_type),
+            not is_nil(build_state),
+            not MapSet.member?(visited, build_state),
+            into: MapSet.new() do
+          build_state
         end
-      next_states = next_no_build_states ++ next_build_states
-      |> Enum.map(fn {state, construction} -> produce(state, construction) end)
-      bfs(blueprint, MapSet.new(next_states), n - 1)
+      bfs(blueprint, next_states, visited)
     end
   end
 
-  def valid_state?(state) do
-    state[:resources][:ore] >= 0 and state[:resources][:clay] >= 0 and state[:resources][:obs] >= 0
+  def run_to_end(state) do
+    produce(state, state[:turns_left])
+  end
+
+  def score_state(state) do
+    run_to_end(state)[:resources][:geode]
   end
 
   def build(blueprint, state, robot_type) do
-    next_state = state
-    |> update_in([:resources, :ore], fn x -> x - blueprint[robot_type][:ore] end)
-    |> update_in([:resources, :clay], fn x -> x - blueprint[robot_type][:clay] end)
-    |> update_in([:resources, :obs], fn x -> x - blueprint[robot_type][:obs] end)
-    {next_state, %{robot_type => 1}}
+    t = time_to_build(blueprint, state, robot_type)
+    if not is_nil(t) and t < state[:turns_left] do
+      # produce for t turns
+      # then pay for the robot and build it
+      state
+      |> produce(t)
+      |> update_in([:resources, :ore], fn x -> x - blueprint[robot_type][:ore] end)
+      |> update_in([:resources, :clay], fn x -> x - blueprint[robot_type][:clay] end)
+      |> update_in([:resources, :obs], fn x -> x - blueprint[robot_type][:obs] end)
+      |> produce()
+      |> update_in([:robots, robot_type], fn x -> x + 1 end)
+    end
   end
 
-  def produce(state, construction) do
+  def time_to_build(blueprint, state, robot_type) do
+    # Time it will take to gain enough resources to build a certain robot
+    # nil -> not possible; zero robots of a necessary resource
+    for resource_type <- [:ore, :clay, :obs, :geode],
+        cost = blueprint[robot_type][resource_type],
+        resources = state[:resources][resource_type],
+        robots = state[:robots][resource_type],
+        reduce: 0 do
+      acc ->
+        cond do
+          is_nil(acc) -> nil
+          cost == 0 -> acc
+          robots == 0 -> nil
+          true -> max(acc, ceil_div(cost - resources, robots))
+        end
+    end
+  end
+
+  def ceil_div(x, y) do
+    Integer.floor_div(x - 1, y) + 1
+  end
+
+  def produce(state, n \\ 1) do
     state
-    |> update_in([:resources, :ore], fn x -> x + state[:robots][:ore] end)
-    |> update_in([:resources, :clay], fn x -> x + state[:robots][:clay] end)
-    |> update_in([:resources, :obs], fn x -> x + state[:robots][:obs] end)
-    |> update_in([:resources, :geode], fn x -> x + state[:robots][:geode] end)
-    |> update_in([:robots, :ore], fn x -> x + Map.get(construction, :ore, 0) end)
-    |> update_in([:robots, :clay], fn x -> x + Map.get(construction, :clay, 0) end)
-    |> update_in([:robots, :obs], fn x -> x + Map.get(construction, :obs, 0) end)
-    |> update_in([:robots, :geode], fn x -> x + Map.get(construction, :geode, 0) end)
+    |> update_in([:resources, :ore], fn x -> x + state[:robots][:ore] * n end)
+    |> update_in([:resources, :clay], fn x -> x + state[:robots][:clay] * n end)
+    |> update_in([:resources, :obs], fn x -> x + state[:robots][:obs] * n end)
+    |> update_in([:resources, :geode], fn x -> x + state[:robots][:geode] * n end)
+    |> update_in([:turns_left], fn prev_n -> prev_n - n end)
   end
 
   def problem1(input \\ "data/day19.txt", type \\ :file) do
-    read_input(input, type)
-    |> score_blueprints(19)
+    blueprints = read_input(input, type)
+    score_blueprints(blueprints, 24)
   end
 
   def problem2(input \\ "data/day19.txt", type \\ :file) do
