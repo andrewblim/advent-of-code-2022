@@ -57,6 +57,31 @@ defmodule Day19 do
     end
   end
 
+  def score_blueprints2(blueprints, n) do
+    init_state = %{
+      resources: %{ore: 0, clay: 0, obs: 0, geode: 0},
+      robots: %{ore: 1, clay: 0, obs: 0, geode: 0},
+      turns_left: 0,
+    }
+    for blueprint <- blueprints, into: %{} do
+      blueprint = augment_blueprint(blueprint)
+      states = MapSet.new([init_state])
+      final_states = for _ <- 1..n, reduce: states do
+        prev_states ->
+          prev_states = for state <- prev_states, into: MapSet.new() do
+            Map.update!(state, :turns_left, fn prev_n -> prev_n + 1 end)
+          end
+          next_states = bfs(blueprint, prev_states, MapSet.new())
+          max_geodes = next_states
+          |> Enum.map(fn state -> state[:resources][:geode] end)
+          |> Enum.max()
+          next_states |> Enum.filter(fn state -> state[:resources][:geode] >= max_geodes - 3 end)
+      end
+      final_scores = Enum.map(final_states, &score_state/1)
+      {blueprint[:id], Enum.max(final_scores)}
+    end
+  end
+
   def bfs(blueprint, states, visited) do
     # IO.inspect(MapSet.size(visited))
     if MapSet.size(states) == 0 do
@@ -165,6 +190,6 @@ defmodule Day19 do
   def problem2(input \\ "data/day19.txt", type \\ :file) do
     read_input(input, type)
     |> Enum.take(3)
-    |> score_blueprints(24)
+    |> score_blueprints2(32)
   end
 end
