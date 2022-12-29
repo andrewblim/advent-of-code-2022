@@ -35,8 +35,8 @@ defmodule Day20 do
 
   def update_matrix(current, number, orig_i, identity) do
     [{cur_i, 1}] = mmult(current, %{{orig_i, 1} => 1}) |> Map.keys()
-    update = next_matrix(number, cur_i, identity)
-    mmult(update, current)
+    update = next_matrix(rem(number, map_size(identity) - 1), cur_i, identity)
+    mmult_fast(update, current)
   end
 
   def next_matrix(n, row, identity) do
@@ -72,9 +72,17 @@ defmodule Day20 do
   end
 
   def mmult(m1, m2) do
-    # specific to transition matrices
     for {{x1, y1}, v1} <- m1, {{x2, y2}, v2} <- m2, y1 == x2, into: %{} do
       {{x1, y2}, v1 * v2}
+    end
+  end
+
+  def mmult_fast(m1, m2) do
+    # specific to transition matrices, relies on there being only one element per row & col
+    elements1 = Map.keys(m1) |> Enum.sort_by(fn {_, y} -> y end)
+    elements2 = Map.keys(m2) |> Enum.sort_by(fn {x, _} -> x end)
+    for {{x1, y1}, {x2, y2}} <- Enum.zip(elements1, elements2), into: %{} do
+      {{x1, y2}, m1[{x1, y1}] * m2[{x2, y2}]}
     end
   end
 
