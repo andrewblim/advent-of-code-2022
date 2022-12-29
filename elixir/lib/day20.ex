@@ -12,8 +12,7 @@ defmodule Day20 do
   # - its current position
   # current position = old * (1 vector at the desired position)
 
-  def find_after_shift(numbers, ns) do
-    shifted = shift(numbers)
+  def find_locations(shifted, ns) do
     case Enum.find(shifted, fn {_, v} -> v == 0 end) do
       {{zero_pos, 1}, 0} ->
         for n <- ns do
@@ -24,11 +23,12 @@ defmodule Day20 do
     end
   end
 
-  def shift(numbers) do
+  def shift(numbers, times \\ 1) do
     identity = for i <- 1..length(numbers), into: %{}, do: {{i, i}, 1}
     numbers_vector = for {number, i} <- Enum.with_index(numbers), into: %{}, do: {{i + 1, 1}, number}
-    trans_matrix = for {number, i} <- Enum.with_index(numbers), reduce: identity do
-      acc -> update_matrix(acc, number, i + 1, identity)
+    trans_matrix = for _ <- 1..times, {number, i} <- Enum.with_index(numbers), reduce: identity do
+      acc ->
+        update_matrix(acc, number, i + 1, identity)
     end
     mmult(trans_matrix, numbers_vector)
   end
@@ -88,10 +88,14 @@ defmodule Day20 do
 
   def problem1(input \\ "data/day20.txt", type \\ :file) do
     read_input(input, type)
-    |> find_after_shift([1000, 2000, 3000])
+    |> shift()
+    |> find_locations([1000, 2000, 3000])
   end
 
   def problem2(input \\ "data/day20.txt", type \\ :file) do
     read_input(input, type)
+    |> Enum.map(fn n -> n * 811589153 end)
+    |> shift(10)
+    |> find_locations([1000, 2000, 3000])
   end
 end
