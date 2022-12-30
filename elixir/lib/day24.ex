@@ -88,7 +88,8 @@ defmodule Day24 do
 
   def bfs(map_data, current, goal, n \\ 0) do
     cond do
-      MapSet.member?(current, goal) -> n
+      MapSet.member?(current, goal) ->
+        {n, map_data}
       MapSet.size(current) == 0 -> nil
       true ->
         {up, down, left, right, walls} = advance_blizzards(map_data)
@@ -118,9 +119,18 @@ defmodule Day24 do
     initial = {0, 1}
     goal = {max_row, max_col - 1}
     bfs({up, down, left, right, walls}, MapSet.new([initial]), goal)
+    |> elem(0)
   end
 
   def problem2(input \\ "data/day24.txt", type \\ :file) do
-    read_input(input, type)
+    {up, down, left, right, walls} = read_input(input, type) |> map_data()
+    {max_row, max_col} = Map.keys(walls) |> Enum.max()
+    initial = {0, 1}
+    goal = {max_row, max_col - 1}
+    data = {up, down, left, right, walls}
+    {n1, data} = bfs(data, MapSet.new([initial]), goal)
+    {n2, data} = bfs(data, MapSet.new([goal]), initial)
+    {n3, _} = bfs(data, MapSet.new([initial]), goal)
+    n1 + n2 + n3
   end
 end
