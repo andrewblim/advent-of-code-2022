@@ -25,13 +25,13 @@ defmodule Day22 do
     end
   end
 
-  def move(map, state, directions) do
+  def move(state, map, directions) do
     case directions do
       [] -> state
       [n | rest] when is_integer(n) ->
-        move(map, walk(map, state, n), rest)
+        walk(state, n, map) |> move(map, rest)
       [rot | rest] when rot == "R" or rot == "L" ->
-        move(map, rotate(state, rot), rest)
+        rotate(state, rot) |> move(map, rest)
     end
   end
 
@@ -48,18 +48,18 @@ defmodule Day22 do
     end
   end
 
-  def walk(map, state, n) do
+  def walk(state, n, map) do
     for _ <- 1..n, reduce: {state, :free} do
       {state, moveable} ->
         case moveable do
-          :free -> walk_step(map, state)
+          :free -> walk_step(state, map)
           :blocked -> {state, :blocked}
         end
     end
     |> elem(0)
   end
 
-  def walk_step(map, {x, y, dir}) do
+  def walk_step({x, y, dir}, map) do
     {new_x, new_y} = case dir do
       :up ->
         if Map.has_key?(map, {x - 1, y}) do
@@ -118,18 +118,142 @@ defmodule Day22 do
     1000 * (x + 1) + 4 * (y + 1) + dir_score
   end
 
-  def problem1(input \\ "data/day22.txt", type \\ :file) do
-    {map, directions} = read_input(input, type)
-    # map
+  def move2(state, map, directions, edges) do
+    case directions do
+      [] -> state
+      [n | rest] when is_integer(n) ->
+        walk2(state, n, map, edges) |> move2(map, rest, edges)
+      [rot | rest] when rot == "R" or rot == "L" ->
+        rotate(state, rot) |> move2(map, rest, edges)
+    end
+  end
+
+  def walk2(state, n, map, edges) do
+    for _ <- 1..n, reduce: {state, :free} do
+      {state, moveable} ->
+        case moveable do
+          :free -> walk_step2(state, map, edges)
+          :blocked -> {state, :blocked}
+        end
+    end
+    |> elem(0)
+  end
+
+  def walk_step2({x, y, dir}, map, edges) do
+    {new_x, new_y, new_dir} = cond do
+      Map.has_key?(edges, {x, y, dir}) -> edges[{x, y, dir}]
+      dir == :up and Map.has_key?(map, {x - 1, y}) ->
+        {x - 1, y, dir}
+      dir == :down and Map.has_key?(map, {x + 1, y}) ->
+        {x + 1, y, dir}
+      dir == :left and Map.has_key?(map, {x, y - 1}) ->
+        {x, y - 1, dir}
+      dir == :right and Map.has_key?(map, {x, y + 1}) ->
+        {x, y + 1, dir}
+      true ->
+        IO.inspect({x, y, dir})
+        raise "oops"
+    end
+    case map[{new_x, new_y}] do
+      "." -> {{new_x, new_y, new_dir}, :free}
+      "#" -> {{x, y, dir}, :blocked}
+    end
+  end
+
+  def first_square(map) do
     start_y = Map.keys(map)
     |> Enum.filter(fn {x, _} -> x == 0 end)
     |> Enum.map(fn {_, y} -> y end)
     |> Enum.min()
-    move(map, {0, start_y, :right}, directions)
+    {0, start_y}
+  end
+
+  # hardcoded for my input, sorry
+  def edge_map() do
+    map = %{}
+
+    # curl the corners
+
+    # bottom of 2 -> right of 3
+    edge1 = for y <- 100..149, do: {49, y}
+    edge2 = for x <- 50..99, do: {x, 99}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :down}, {x2, y2, :left})
+        |> Map.put({x2, y2, :right}, {x1, y1, :up})
+    end
+
+    # bottom of 5 -> right of 6
+    edge1 = for y <- 50..99, do: {149, y}
+    edge2 = for x <- 150..199, do: {x, 49}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :down}, {x2, y2, :left})
+        |> Map.put({x2, y2, :right}, {x1, y1, :up})
+    end
+
+    # top of 4 -> left of 3
+    edge1 = for y <- 0..49, do: {100, y}
+    edge2 = for x <- 50..99, do: {x, 50}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :up}, {x2, y2, :right})
+        |> Map.put({x2, y2, :left}, {x1, y1, :down})
+    end
+
+    # remaining edges sequentially top to bottom
+
+    # top of 1 -> left of 6
+    edge1 = for y <- 50..99, do: {0, y}
+    edge2 = for x <- 150..199, do: {x, 0}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :up}, {x2, y2, :right})
+        |> Map.put({x2, y2, :left}, {x1, y1, :down})
+    end
+
+    # top of 2 -> bottom of 6
+    edge1 = for y <- 100..149, do: {0, y}
+    edge2 = for y <- 0..49, do: {199, y}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :up}, {x2, y2, :up})
+        |> Map.put({x2, y2, :down}, {x1, y1, :down})
+    end
+
+    # left of 1 -> left of 4 (flipped)
+    edge1 = for x <- 0..49, do: {x, 50}
+    edge2 = for x <- 149..100, do: {x, 0}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :left}, {x2, y2, :right})
+        |> Map.put({x2, y2, :left}, {x1, y1, :right})
+    end
+
+    # right of 2 -> right of 5 (flipped)
+    edge1 = for x <- 0..49, do: {x, 149}
+    edge2 = for x <- 149..100, do: {x, 99}
+    map = for {{x1, y1}, {x2, y2}} <- Enum.zip(edge1, edge2), reduce: map do
+      acc -> acc
+        |> Map.put({x1, y1, :right}, {x2, y2, :left})
+        |> Map.put({x2, y2, :right}, {x1, y1, :left})
+    end
+
+    map
+  end
+
+  def problem1(input \\ "data/day22.txt", type \\ :file) do
+    {map, directions} = read_input(input, type)
+    {x, y} = first_square(map)
+    move({x, y, :right}, map, directions)
     |> score_state()
   end
 
   def problem2(input \\ "data/day22.txt", type \\ :file) do
-    read_input(input, type)
+    {map, directions} = read_input(input, type)
+    {x, y} = first_square(map)
+    edges = edge_map()
+    move2({x, y, :right}, map, directions, edges)
+    |> score_state()
   end
 end
